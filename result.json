@@ -1,4 +1,6 @@
 {
-    "update_time": "2026-03-19 10:49:16",
-    "status": "Error: No module named 'fetch_history_page_backup'"
+    "update_time": "2026-03-19 10:52:10",
+    "status": "Error: 抓取到的資料太少 (0 筆)，無法進行 AI 訓練",
+    "predict_numbers": [],
+    "special_number": null
 }
