@@ -2,38 +2,40 @@ name: Lotto AI Predictor
 
 on:
   schedule:
-    - cron: '0 14 * * 2,5' # 每週二、五晚上 10 點 (UTC 14:00)
-  workflow_dispatch: # 讓你可以手動點擊執行測試
+    - cron: '0 14 * * 2,5'   # 每週二、五台灣時間 22:00
+  workflow_dispatch:           # 手動觸發測試
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # 賦予寫入權限，這非常重要
+      contents: write
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # 升級版本
+        uses: actions/checkout@v4   # ✅ 已是最新版
 
       - name: Set up Python
-        uses: actions/setup-python@v5 # 升級版本
+        uses: actions/setup-python@v5   # ✅ 已是最新版
         with:
-          python-version: '3.10'
+          python-version: '3.11'       # 升到 3.11 更穩定
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas scikit-learn requests beautifulsoup4 numpy pytz
+          pip install pandas scikit-learn requests beautifulsoup4 numpy pytz lxml
 
       - name: Run AI Script
         run: python your_script.py
+
+      - name: Show result
+        run: cat result.json          # 除錯用：印出結果
 
       - name: Commit and Push
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add result.json
-          # 檢查是否有檔案變更，避免 git commit 出錯導致 exit code 1
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
