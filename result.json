@@ -1,22 +1,15 @@
 {
-    "update_time": "2026-04-21 09:35:20",
+    "update_time": "2026-04-21 09:53:47",
     "lotto649": {
-        "predict_numbers": [
-            2,
-            3,
-            18,
-            23,
-            24,
-            27
-        ],
-        "special_number": 29,
-        "status": "Success",
-        "data_count": 570
+        "predict_numbers": [],
+        "special_number": null,
+        "status": "Error",
+        "data_count": 0
     },
     "superlotto": {
         "predict_numbers": [],
         "special_number": null,
-        "status": "Error: 僅抓到 0 筆",
+        "status": "Error",
         "data_count": 0
     }
 }
