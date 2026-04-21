@@ -15,63 +15,48 @@ TW_TZ = pytz.timezone('Asia/Taipei')
 # ══════════════════════════════════════════════════════════════
 # 爬蟲：大樂透 Lotto 6/49 (6+1顆球)
 # ══════════════════════════════════════════════════════════════
-def fetch_lotto649(pages=50):
+def fetch_lotto649(pages=1):
     all_results = []
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    }
-    for page in range(1, pages + 1):
-        url = f"https://en.lottolyzer.com/history/taiwan/lotto-649/page/{page}"
-        print(f"[大樂透] 第 {page}/{pages} 頁（累計 {len(all_results)} 筆）")
-        try:
-            res = requests.get(url, headers=headers, timeout=20)
-            if res.status_code != 200: continue
-            soup = BeautifulSoup(res.text, 'html.parser')
-            rows = soup.select('table tbody tr')
-            for row in rows:
-                balls = row.select('td.ball, span.ball, li.ball, td.number, .lottery-ball')
-                # 大樂透是 6+1 顆球 = 7 顆
-                if len(balls) >= 7:
-                    try:
-                        nums = [int(b.get_text(strip=True)) for b in balls[:7]]
-                        if all(1 <= n <= 49 for n in nums):
-                            all_results.append(nums)
-                    except: continue
-            time.sleep(0.5)
-        except Exception as e:
-            print(f"  錯誤: {e}")
+    # 這是台彩大樂透的官方 API 網址
+    url = "https://www.taiwanlottery.com.tw/app/data/last_60_Lotto649.json"
+    print(f"[大樂透] 正在從台彩官網 API 抓取資料...")
+    try:
+        res = requests.get(url, verify=False, timeout=20)
+        data = res.json()
+        for item in data.get('data', []):
+            # 取得主號 6 個 + 特別號 1 個
+            nums = item.get('no', []) # 主號列表
+            s_num = item.get('sno')    # 特別號
+            if len(nums) == 6 and s_num:
+                all_results.append(nums + [int(s_num)])
+    except Exception as e:
+        print(f"  大樂透抓取錯誤: {e}")
+    
     print(f"[大樂透] 共 {len(all_results)} 筆")
     return all_results
+
+
 
 # ══════════════════════════════════════════════════════════════
 # 爬蟲：威力彩 Super Lotto (6+1顆球)
 # ══════════════════════════════════════════════════════════════
-def fetch_superlotto(pages=50):
+def fetch_superlotto(pages=1):
     all_results = []
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    }
-    for page in range(1, pages + 1):
-        url = f"https://en.lottolyzer.com/history/taiwan/super-lotto/page/{page}"
-        print(f"[威力彩] 第 {page}/{pages} 頁（累計 {len(all_results)} 筆）")
-        try:
-            res = requests.get(url, headers=headers, timeout=20)
-            if res.status_code != 200: continue
-            soup = BeautifulSoup(res.text, 'html.parser')
-            rows = soup.select('table tbody tr')
-            for row in rows:
-                balls = row.select('td.ball, span.ball, li.ball, td.number, .lottery-ball')
-                # ✅ 修正點：威力彩是 6個主號 + 1個特別號 = 7 顆球 (原本寫 8 導致抓不到)
-                if len(balls) >= 7:
-                    try:
-                        nums = [int(b.get_text(strip=True)) for b in balls[:7]]
-                        # 驗證：前6顆 1~38，第7顆 1~8
-                        if all(1 <= n <= 38 for n in nums[:6]) and (1 <= nums[6] <= 8):
-                            all_results.append(nums)
-                    except: continue
-            time.sleep(0.5)
-        except Exception as e:
-            print(f"  錯誤: {e}")
+    # 這是台彩威力彩的官方 API 網址
+    url = "https://www.taiwanlottery.com.tw/app/data/last_60_SuperLotto.json"
+    print(f"[威力彩] 正在從台彩官網 API 抓取資料...")
+    try:
+        res = requests.get(url, verify=False, timeout=20)
+        data = res.json()
+        for item in data.get('data', []):
+            # 取得主號 6 個 + 第二區特別號 1 個
+            nums = item.get('no', [])
+            s_num = item.get('sno')
+            if len(nums) == 6 and s_num:
+                all_results.append(nums + [int(s_num)])
+    except Exception as e:
+        print(f"  威力彩抓取錯誤: {e}")
+
     print(f"[威力彩] 共 {len(all_results)} 筆")
     return all_results
 
