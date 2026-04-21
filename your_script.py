@@ -222,7 +222,7 @@ def main():
     with open("result.json", "w", encoding='utf-8') as f:
         json.dump(result, f, indent=4, ensure_ascii=False)
 
-    print(f"\n✅ 更新完成！時間更新: {now_str}")
+    print(f"\n更新完成！時間更新: {now_str}")
     print(f"📊 大樂透筆數: {len(lotto_data)} | 威力彩筆數: {len(super_data)}")
     print(f"🎯 大樂透: {result['lotto649']['predict_numbers']} 特別號: {result['lotto649']['special_number']}")
     print(f"🎯 威力彩: {result['superlotto']['predict_numbers']} 特別號: {result['superlotto']['special_number']}")
