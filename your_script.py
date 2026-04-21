@@ -4,60 +4,50 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import time
-from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
+from sklearn.ensemble import ExtraTreesClassifier
 from datetime import datetime
 import pytz
 import urllib3
 
+# 關閉 SSL 警告 (GitHub Actions 常見需求)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 TW_TZ = pytz.timezone('Asia/Taipei')
 
 # ══════════════════════════════════════════════════════════════
-# 爬蟲：大樂透 Lotto 6/49 (6+1顆球)
+# 修正版爬蟲：對接官方 API (最穩定)
 # ══════════════════════════════════════════════════════════════
 def fetch_lotto649(pages=1):
     all_results = []
-    # 這是台彩大樂透的官方 API 網址
     url = "https://www.taiwanlottery.com.tw/app/data/last_60_Lotto649.json"
     print(f"[大樂透] 正在從台彩官網 API 抓取資料...")
     try:
         res = requests.get(url, verify=False, timeout=20)
+        res.encoding = 'utf-8'
         data = res.json()
         for item in data.get('data', []):
-            # 取得主號 6 個 + 特別號 1 個
-            nums = item.get('no', []) # 主號列表
-            s_num = item.get('sno')    # 特別號
-            if len(nums) == 6 and s_num:
-                all_results.append(nums + [int(s_num)])
-    except Exception as e:
-        print(f"  大樂透抓取錯誤: {e}")
-    
-    print(f"[大樂透] 共 {len(all_results)} 筆")
-    return all_results
-
-
-
-# ══════════════════════════════════════════════════════════════
-# 爬蟲：威力彩 Super Lotto (6+1顆球)
-# ══════════════════════════════════════════════════════════════
-def fetch_superlotto(pages=1):
-    all_results = []
-    # 這是台彩威力彩的官方 API 網址
-    url = "https://www.taiwanlottery.com.tw/app/data/last_60_SuperLotto.json"
-    print(f"[威力彩] 正在從台彩官網 API 抓取資料...")
-    try:
-        res = requests.get(url, verify=False, timeout=20)
-        data = res.json()
-        for item in data.get('data', []):
-            # 取得主號 6 個 + 第二區特別號 1 個
-            nums = item.get('no', [])
+            nums = [int(n) for n in item.get('no', [])] # 轉為整數
             s_num = item.get('sno')
             if len(nums) == 6 and s_num:
                 all_results.append(nums + [int(s_num)])
     except Exception as e:
-        print(f"  威力彩抓取錯誤: {e}")
+        print(f"  大樂透 API 錯誤: {e}")
+    return all_results
 
-    print(f"[威力彩] 共 {len(all_results)} 筆")
+def fetch_superlotto(pages=1):
+    all_results = []
+    url = "https://www.taiwanlottery.com.tw/app/data/last_60_SuperLotto.json"
+    print(f"[威力彩] 正在從台彩官網 API 抓取資料...")
+    try:
+        res = requests.get(url, verify=False, timeout=20)
+        res.encoding = 'utf-8'
+        data = res.json()
+        for item in data.get('data', []):
+            nums = [int(n) for n in item.get('no', [])]
+            s_num = item.get('sno')
+            if len(nums) == 6 and s_num:
+                all_results.append(nums + [int(s_num)])
+    except Exception as e:
+        print(f"  威力彩 API 錯誤: {e}")
     return all_results
 
 # ══════════════════════════════════════════════════════════════
@@ -112,7 +102,8 @@ def predict(raw_data, max_num, pick):
     X = np.array(X_train[:-1])
     y = np.array(y_train[1:])
 
-    model = ExtraTreesClassifier(n_estimators=500, max_depth=12, random_state=42, n_jobs=-1)
+    # 使用穩定性更高的 ExtraTrees
+    model = ExtraTreesClassifier(n_estimators=1000, max_depth=15, random_state=42, n_jobs=-1)
     model.fit(X, y)
 
     recent_freq = {i: 0 for i in range(1, max_num + 1)}
@@ -122,14 +113,24 @@ def predict(raw_data, max_num, pick):
     latest_x = np.array([[*list(last_seen.values()), *list(total_freq.values()), *list(recent_freq.values()), 0, 0, 0, 0]])
     
     probas = model.predict_proba(latest_x)
-    probs = np.array([p[0][1] if p[0].shape[0] > 1 else 0 for p in probas])
-
+    # 修正：確保處理機率維度
+    probs = []
+    for p in probas:
+        if isinstance(p, list): # 多標籤情況處理
+            probs.append(p[0][1] if len(p[0]) > 1 else 0)
+        else:
+            probs.append(p[0][1] if p.shape[1] > 1 else 0)
+    
+    probs = np.array(probs)
     top_idx = np.argsort(probs)[-pick:][::-1]
     res_nums = sorted([int(i + 1) for i in top_idx])
     
-    # 特別號預測（簡單取近期遺漏最高的）
-    special_idx = np.argmax(list(last_seen.values())[:8 if max_num==38 else 49])
-    return res_nums, special_idx + 1
+    # 特別號：取目前遺漏次數最高的
+    special_limit = 8 if max_num == 38 else 49
+    last_seen_list = list(last_seen.values())[:special_limit]
+    special_num = np.argmax(last_seen_list) + 1
+    
+    return res_nums, int(special_num)
 
 # ══════════════════════════════════════════════════════════════
 # 主程式
@@ -139,8 +140,7 @@ def main():
     result = {"update_time": now_str}
 
     # ── 大樂透 ──
-    print("\n🎱 執行大樂透分析...")
-    lotto_data = fetch_lotto649(pages=40)
+    lotto_data = fetch_lotto649()
     if len(lotto_data) >= 10:
         nums, special = predict(lotto_data, max_num=49, pick=6)
         result["lotto649"] = {"predict_numbers": nums, "special_number": special, "status": "Success", "data_count": len(lotto_data)}
@@ -148,10 +148,8 @@ def main():
         result["lotto649"] = {"predict_numbers": [], "special_number": None, "status": "Error", "data_count": len(lotto_data)}
 
     # ── 威力彩 ──
-    print("\n⚡ 執行威力彩分析...")
-    super_data = fetch_superlotto(pages=40)
+    super_data = fetch_superlotto()
     if len(super_data) >= 10:
-        # ✅ 修正點：威力彩主號是 6 個 (原本寫 pick=7 也是錯的)
         nums, special = predict(super_data, max_num=38, pick=6)
         result["superlotto"] = {"predict_numbers": nums, "special_number": special, "status": "Success", "data_count": len(super_data)}
     else:
@@ -159,7 +157,9 @@ def main():
 
     with open("result.json", "w", encoding='utf-8') as f:
         json.dump(result, f, indent=4, ensure_ascii=False)
-    print("\n✅ 分析完成！結果已寫入 result.json")
+    
+    print(f"✅ 更新完成！更新時間: {now_str}")
+    print(f"📊 大樂透筆數: {len(lotto_data)} | 威力彩筆數: {len(super_data)}")
 
 if __name__ == "__main__":
     main()
