@@ -1,5 +1,5 @@
 {
-    "update_time": "2026-06-27 00:22:11",
+    "update_time": "2026-06-30 13:26:22",
     "lotto649": {
         "predict_numbers": [
             11,
@@ -15,15 +15,15 @@
     },
     "superlotto": {
         "predict_numbers": [
+            5,
             6,
-            10,
-            20,
-            25,
-            28,
-            32
+            9,
+            15,
+            16,
+            33
         ],
         "special_number": 7,
         "status": "Success",
-        "data_count": 68
+        "data_count": 69
     }
 }
